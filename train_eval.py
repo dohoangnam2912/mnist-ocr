@@ -12,7 +12,7 @@ def train(model, train_loader, criterion, optimizer, device):
     for images, labels in train_loader:
         images, labels = images.to(device), labels.to(device)
         optimizer.zero_grad()
-        outputs = model(images)
+        outputs = model(images, classify=True)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
@@ -35,7 +35,7 @@ def evaluate_baseline(model, test_loader, criterion, device):
     with torch.no_grad():
         for images, labels in test_loader:
             images, labels = images.to(device), labels.to(device)
-            outputs = model(images)
+            outputs = model(images, classify=True)
             loss = criterion(outputs, labels)
             test_loss += loss.item()
             _, preds = torch.max(outputs.data, 1)
@@ -102,7 +102,7 @@ def plot_misclassified_samples(model, test_loader, device, num_samples=10):
     with torch.no_grad():
         for images, labels in test_loader:
             images, labels = images.to(device), labels.to(device)
-            outputs = model(images)
+            outputs = model(images, classify= True)
             _, preds = torch.max(outputs, 1)
 
             for i in range(len(labels)):

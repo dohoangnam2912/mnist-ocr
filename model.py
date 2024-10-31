@@ -19,11 +19,51 @@ class CNNModel(nn.Module):
         x = self.fc2(x) # Output
         return x
     
-if __name__ == "__main__":
-    model = CNNModel()
-    if torch.cuda.device_count() > 1:
-        model = nn.DataParallel(model) # Enable multi-GPU
-        print("Activate dual VGA")
+class Autoencoder(nn.Module):
+    def __init__(self, num_classes=47):  # Adjust number of classes for EMNIST
+        super(Autoencoder, self).__init__()
+        
+        # Encoder
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 16, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
+            nn.ReLU()
+        )
+        
+        # Decoder for reconstruction
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(16, 1, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.Sigmoid()  # Output in range [0, 1]
+        )
+        
+        # Classifier for classification, using the correct flattened size
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(64 * 4 * 4, 128),  # Updated to match the encoder output size (1024)
+            nn.ReLU(),
+            nn.Linear(128, num_classes)  # Output layer for classification
+        )
+        
+    def forward(self, x, classify=False):
+        x = self.encoder(x)
+        if classify:
+            return self.classifier(x)  # Use this for classification
+        else:
+            return self.decoder(x)  # Use this for reconstruction
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
+
+    
+if __name__ == "__main__":
+    # Check encoder output size for a sample input
+    model = Autoencoder()
+    sample_input = torch.randn(1, 1, 28, 28)  # Example input for EMNIST
+    encoded_output = model.encoder(sample_input)
+    print("Encoder output shape:", encoded_output.shape)
+
