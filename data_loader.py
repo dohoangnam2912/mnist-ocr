@@ -3,6 +3,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
+import random
+import matplotlib.pyplot as plt
 
 def load_images(filepath):
     with open(filepath, 'rb') as f:
@@ -32,24 +34,18 @@ class MNISTDataset(Dataset):
     def __getitem__(self, index):
         image = self.images[index]
         label = self.labels[index]
-        if self.transform:
-            image = self.transform(image)
+        # if self.transform:
+        #     image = self.transform(image)
         return image, label
 
-def get_mnist_data_loaders(train_images_path, train_labels_path, test_images_path, test_labels_path, batch_size=64, transform=None): 
-    transform = transforms.Compose([
-        transforms.RandomRotation(10),
-        transforms.RandomAffine(0, translate=(0.1, 0.1)),
-        transforms.ToTensor(),
-        transforms.Normalize((0,5,), (0.5,))
-    ])
+def get_data_loaders(train_images_path, train_labels_path, test_images_path, test_labels_path, batch_size=64, transform=None): 
     train_images = load_images(train_images_path)
     train_labels = load_labels(train_labels_path)
     test_images = load_images(test_images_path)
     test_labels = load_labels(test_labels_path)
 
-    train_dataset = MNISTDataset(train_images, train_labels)
-    test_dataset = MNISTDataset(test_images, test_labels)
+    train_dataset = MNISTDataset(train_images, train_labels, transform=None)
+    test_dataset = MNISTDataset(test_images, test_labels, transform=None)
 
     train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=64, shuffle=True)
@@ -57,11 +53,28 @@ def get_mnist_data_loaders(train_images_path, train_labels_path, test_images_pat
     return train_loader, test_loader
 
 if __name__ == "__main__":
-    train_images_path = './Data/MNIST/train-images-idx3-ubyte/train-images-idx3-ubyte'
-    train_labels_path = './Data/MNIST/train-labels-idx1-ubyte/train-labels-idx1-ubyte'
-    test_images_path = './Data/MNIST/t10k-images-idx3-ubyte/t10k-images-idx3-ubyte'
-    test_labels_path = './Data/MNIST/t10k-labels-idx1-ubyte/t10k-labels-idx1-ubyte'
+    # train_images_path = './Data/MNIST/train-images-idx3-ubyte/train-images-idx3-ubyte'
+    # train_labels_path = './Data/MNIST/train-labels-idx1-ubyte/train-labels-idx1-ubyte'
+    # test_images_path = './Data/MNIST/t10k-images-idx3-ubyte/t10k-images-idx3-ubyte'
+    # test_labels_path = './Data/MNIST/t10k-labels-idx1-ubyte/t10k-labels-idx1-ubyte'
+    train_images_path = './Data/EMNIST/emnist-balanced-train-images-idx3-ubyte'
+    train_labels_path = './Data/EMNIST/emnist-balanced-train-labels-idx1-ubyte'
+    test_images_path = './Data/EMNIST/emnist-balanced-test-images-idx3-ubyte'
+    test_labels_path = './Data/EMNIST/emnist-balanced-test-labels-idx1-ubyte'
+    train_loader, data_loader = get_data_loaders(train_images_path, train_labels_path, test_images_path, test_labels_path)
+    images, labels = next(iter(data_loader))
 
-    get_mnist_data_loaders(train_images_path, train_labels_path, test_images_path, test_labels_path)
-    
+    # Visualize a batch
+    class_labels = [
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',  # Digits
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',  # Uppercase Letters
+        'a', 'b', 'd', 'e', 'f', 'g', 'h', 'n', 'q', 'r', 't'  # Selected lowercase letters
+        ]
+    fig, axes = plt.subplots(1, 10, figsize=(15, 2))
+    for i in range(10):
+        img = images[i].squeeze().cpu().numpy()
+        axes[i].imshow(img, cmap="gray")
+        axes[i].set_title(f"Label: {class_labels[labels[i].item()]}")
+        axes[i].axis('off')
+    plt.show()
     print("Dataset loaded")

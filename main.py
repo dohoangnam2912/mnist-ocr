@@ -1,7 +1,7 @@
 import torch
 from data_loader import get_data_loaders
 from model import CNNModel
-from train_eval import train, evaluate_baseline, plot_metrics, plot_misclassified_samples, plot_confusion_matrix
+from train_eval import train, evaluate_baseline, plot_metrics, plot_misclassified_samples, plot_confusion_matrix, plot_confusion_matrix_emnist
 import torch.optim as optim
 import torch.nn as nn
 
@@ -11,6 +11,7 @@ if __name__ == "__main__":
     # train_labels_path = './Data/MNIST/train-labels-idx1-ubyte/train-labels-idx1-ubyte'
     # test_images_path = './Data/MNIST/t10k-images-idx3-ubyte/t10k-images-idx3-ubyte'
     # test_labels_path = './Data/MNIST/t10k-labels-idx1-ubyte/t10k-labels-idx1-ubyte'
+    #train_loader, test_loader = get_mnist_data_loaders(train_images_path, train_labels_path, test_images_path, test_labels_path)
 
     # EMNIST dataset
     train_images_path = './Data/EMNIST/emnist-balanced-train-images-idx3-ubyte'
@@ -30,7 +31,7 @@ if __name__ == "__main__":
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-    num_epochs = 2
+    num_epochs = 5
     best_accuracy = 0.0
     metrics = {
     "train_loss": [],
@@ -67,13 +68,13 @@ if __name__ == "__main__":
         if (epoch + 1) % 5 == 0 or epoch + 1 == num_epochs:
             print(f"Detailed Metrics - Every 5 Epochs or Final Epoch")
             print(f"Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
-            plot_confusion_matrix(cm, "mnist_confusion_matrix.png")
+            plot_confusion_matrix_emnist(cm, "emnist_confusion_matrix.png")
     plot_misclassified_samples(model, test_loader, device)
     plot_metrics(metrics)
     # Save as TorchScript
-    scripted_model = torch.jit.script(model)
-    scripted_model.save("mnist_model_scripted.pt")
+    # scripted_model = torch.jit.script(model)
+    # scripted_model.save("mnist_model_scripted.pt")
 
-    # Export to ONNX
-    dummy_input = torch.randn(1, 1, 28, 28, device=device)
-    torch.onnx.export(model, dummy_input, "mnist_model.onnx")
+    # # Export to ONNX
+    # dummy_input = torch.randn(1, 1, 28, 28, device=device)
+    # torch.onnx.export(model, dummy_input, "mnist_model.onnx")

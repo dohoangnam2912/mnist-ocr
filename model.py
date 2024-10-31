@@ -9,7 +9,7 @@ class CNNModel(nn.Module):
         self.conv2 = nn.Conv2d(32, 64, kernel_size= 3, padding= 1)
         self.pool = nn.MaxPool2d(2, 2)
         self.fc1 = nn.Linear(64 * 7 * 7, 128) # Embedding layer
-        self.fc2 = nn.Linear(128, 10) # Output
+        self.fc2 = nn.Linear(128, 47) # Output
 
     def forward(self, x):
         x = self.pool(torch.relu(self.conv1(x)))
