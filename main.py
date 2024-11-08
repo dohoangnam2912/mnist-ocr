@@ -1,9 +1,11 @@
 import torch
 from data_loader import get_data_loaders
-from model import CNNModel, Autoencoder
+from model import CNNModel, Autoencoder, ANN
 from train_eval import train, evaluate_baseline, plot_metrics, plot_misclassified_samples, plot_confusion_matrix, plot_confusion_matrix_emnist
 import torch.optim as optim
 import torch.nn as nn
+
+import matplotlib.pyplot as plt # Later delete
 
 if __name__ == "__main__":
     # MNIST dataset
@@ -20,7 +22,7 @@ if __name__ == "__main__":
     test_labels_path = './Data/EMNIST/emnist-balanced-test-labels-idx1-ubyte'
     train_loader, test_loader = get_data_loaders(train_images_path, train_labels_path, test_images_path, test_labels_path)
 
-    model = Autoencoder()
+    model = CNNModel()
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model) # Enable multi-GPU
         print("Activate dual VGA")
@@ -31,7 +33,7 @@ if __name__ == "__main__":
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-    num_epochs = 5
+    num_epochs = 10
     best_accuracy = 0.0
     metrics = {
     "train_loss": [],

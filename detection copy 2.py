@@ -6,10 +6,10 @@ from model import ANN, CNNModel
 
 # Define character labels for prediction
 characters = [
-        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',  # Digits
-        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',  # Uppercase Letters
-        'a', 'b', 'd', 'e', 'f', 'g', 'h', 'n', 'q', 'r', 't'  # Selected lowercase letters
-        ]
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',  # Digits
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',  # Uppercase Letters
+    'a', 'b', 'd', 'e', 'f', 'g', 'h', 'n', 'q', 'r', 't'  # Selected lowercase letters
+]
 
 def load_model(model_path):
     """
@@ -20,39 +20,22 @@ def load_model(model_path):
     model.eval()  # Set model to evaluation mode
     return model
 
-import cv2
-import numpy as np
-import torch
-
-import cv2
-import numpy as np
-import torch
-
 def preprocess_roi(roi):
     """
-    Preprocess the ROI with additional blur and fine-tuning of padding and thresholding to closely match EMNIST.
+    Improved preprocessing for consistency in character centering, padding, and uniformity.
     """
-    # Convert to grayscale if needed
     if len(roi.shape) == 3:
         roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
 
-    # Apply a Gaussian Blur to soften edges further
     roi = cv2.GaussianBlur(roi, (5, 5), 1)
-
-    # Invert colors to ensure the character is white on a black background
     roi = cv2.bitwise_not(roi)
-
-    # Apply binary thresholding with a slightly higher threshold for better contrast
     _, roi = cv2.threshold(roi, 150, 255, cv2.THRESH_BINARY)
 
-    # Find contours to determine the bounding box
     contours, _ = cv2.findContours(roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if contours:
-        # Get the bounding box for the largest contour
         x, y, w, h = cv2.boundingRect(contours[0])
-        roi = roi[y:y+h, x:x+w]  # Crop the ROI to the bounding box
+        roi = roi[y:y+h, x:x+w]
 
-    # Resize to 20x20 while preserving aspect ratio, with high-quality resampling
     h, w = roi.shape
     if w > h:
         new_w = 20
@@ -62,24 +45,54 @@ def preprocess_roi(roi):
         new_w = int((20 / h) * w)
     roi = cv2.resize(roi, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
 
-    # Center the character in a 28x28 frame with a 3-pixel border if needed
     top = (28 - new_h) // 2
     bottom = 28 - new_h - top
     left = (28 - new_w) // 2
     right = 28 - new_w - left
     roi = cv2.copyMakeBorder(roi, top, bottom, left, right, cv2.BORDER_CONSTANT, value=0)
 
-    # Apply a final Gaussian Blur with a slightly larger kernel for a softer look
-    roi = cv2.GaussianBlur(roi, (3, 3), 0.8)
-
-    # Normalize to [0, 1] and add batch/channel dimensions for the model
-    roi = torch.tensor(roi, dtype=torch.float32) / 255.0  # Normalize pixel values
-    roi = roi.unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions: (1, 1, 28, 28)
+    roi = cv2.GaussianBlur(roi, (3, 3), 0.5)
+    roi = torch.tensor(roi, dtype=torch.float32) / 255.0
+    roi = roi.unsqueeze(0).unsqueeze(0)
     
     return roi
 
+def segment_lines(image):
+    profile = np.sum(image, axis=1)
+    threshold = np.max(profile) * 0.1
+    line_start = None
+    lines = []
 
+    for i, val in enumerate(profile):
+        if val < threshold and line_start is not None:
+            lines.append((line_start, i))
+            line_start = None
+        elif val >= threshold and line_start is None:
+            line_start = i
 
+    return lines
+
+def segment_words(line_image):
+    profile = np.sum(line_image, axis=0)
+    threshold = np.max(profile) * 0.1
+    word_start = None
+    words = []
+
+    for i, val in enumerate(profile):
+        if val < threshold and word_start is not None:
+            words.append((word_start, i))
+            word_start = None
+        elif val >= threshold and word_start is None:
+            word_start = i
+
+    return words
+
+def segment_characters(word_image):
+    _, thresh = cv2.threshold(word_image, 127, 255, cv2.THRESH_BINARY_INV)
+    ctrs, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    sorted_ctrs = sorted(ctrs, key=lambda ctr: cv2.boundingRect(ctr)[0])
+    character_bboxes = [cv2.boundingRect(ctr) for ctr in sorted_ctrs]
+    return character_bboxes
 
 def detect_and_predict_characters(image_path, model):
     """
@@ -115,21 +128,28 @@ def detect_and_predict_characters(image_path, model):
     for ctr in sorted_ctrs:
         x, y, w, h = cv2.boundingRect(ctr)
         roi = image[y-10:y+h+10, x-10:x+w+10]
-        roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)  # Convert to grayscale if needed
+        roi_original = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)  # Convert to grayscale if needed
+
+        # Display the original ROI before preprocessing
+        plt.figure(figsize=(10, 5))
+        plt.subplot(1, 2, 1)
+        plt.imshow(roi_original, cmap='gray')
+        plt.title("Original ROI (Unprocessed)")
+        plt.axis('off')
 
         # Preprocess the ROI to match EMNIST format
-        roi = preprocess_roi(roi)
+        roi_preprocessed = preprocess_roi(roi_original)
 
         # Display the preprocessed ROI
-        plt.figure()
-        plt.imshow(roi.squeeze(), cmap='gray')
+        plt.subplot(1, 2, 2)
+        plt.imshow(roi_preprocessed.squeeze(), cmap='gray')
         plt.title("Preprocessed ROI")
         plt.axis('off')
         plt.show()
 
         # Make prediction
         with torch.no_grad():
-            output = model(roi)
+            output = model(roi_preprocessed)
             _, pred = torch.max(output, 1)
             predicted_character = characters[pred.item()]
             predicted_characters.append(predicted_character)

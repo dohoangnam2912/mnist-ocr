@@ -2,6 +2,23 @@ import torch.nn as nn
 import torch.optim as optim
 import torch
 
+class ANN(nn.Module):
+    def __init__(self, num_classes=47):
+        super(ANN, self).__init__()
+        self.flatten = nn.Flatten()
+        self.linear_relu_stack = nn.Sequential(
+            nn.Linear(28*28, 512),
+            nn.ReLU(),
+            nn.Linear(512, 216),
+            nn.ReLU(),
+            nn.Linear(216, num_classes),
+        )
+
+    def forward(self, x, classify=None):
+        x = self.flatten(x)
+        x = self.linear_relu_stack(x)
+        return x
+
 class CNNModel(nn.Module):
     def __init__(self):
         super(CNNModel, self).__init__()
@@ -11,7 +28,7 @@ class CNNModel(nn.Module):
         self.fc1 = nn.Linear(64 * 7 * 7, 128) # Embedding layer
         self.fc2 = nn.Linear(128, 47) # Output
 
-    def forward(self, x):
+    def forward(self, x, classify=None):
         x = self.pool(torch.relu(self.conv1(x)))
         x = self.pool(torch.relu(self.conv2(x)))
         x = x.view(-1, 64 * 7 * 7) # Flatten

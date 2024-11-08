@@ -117,6 +117,13 @@ def detect_and_predict_characters(image_path, model):
         roi = image[y-10:y+h+10, x-10:x+w+10]
         roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)  # Convert to grayscale if needed
 
+        # Display the original ROI before preprocessing
+        plt.figure()
+        plt.imshow(roi, cmap='gray')
+        plt.title("Original ROI (Unprocessed)")
+        plt.axis('off')
+        plt.show()
+
         # Preprocess the ROI to match EMNIST format
         roi = preprocess_roi(roi)
 
@@ -163,3 +170,4 @@ if __name__ == "__main__":
     
     # Detect and predict characters
     predicted_text = detect_and_predict_characters(image_path, model)
+
